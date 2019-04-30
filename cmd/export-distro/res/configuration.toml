@@ -47,6 +47,11 @@ File = './logs/edgex-export-distro.log'
   Cert = 'dummy.crt'
   Key = 'dummy.key'
 
+[MQTTConfig] 
+  qos    = 0
+  retain = false   
+  autoreconnect = false 
+
 [MessageQueue]
 Protocol = 'tcp'
 Host = 'localhost'

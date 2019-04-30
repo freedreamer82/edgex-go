@@ -19,14 +19,32 @@ import (
 	"github.com/edgexfoundry/edgex-go/internal/pkg/correlation/models"
 	contract "github.com/edgexfoundry/go-mod-core-contracts/models"
 )
+//Mqtt options config
+type MqttConfig struct {
+	qos    		  byte
+	retain 		  bool
+	autoreconnect bool
+}
 
 type mqttSender struct {
 	client MQTT.Client
 	topic  string
+	opts   MqttConfig
+}
+
+
+// default mqttConfig
+func newMqttConfig() *MqttConfig {
+	mqttConfig := new(MqttConfig)
+	mqttConfig.qos 	         = 0
+	mqttConfig.retain        = false
+	mqttConfig.autoreconnect = false
+
+	return mqttConfig
 }
 
 // newMqttSender - create new mqtt sender
-func newMqttSender(addr contract.Addressable, cert string, key string) sender {
+func newMqttSender(addr contract.Addressable, cert string, key string , config *MqttConfig ) sender {
 	protocol := strings.ToLower(addr.Protocol)
 
 	opts := MQTT.NewClientOptions()
@@ -35,7 +53,8 @@ func newMqttSender(addr contract.Addressable, cert string, key string) sender {
 	opts.SetClientID(addr.Publisher)
 	opts.SetUsername(addr.User)
 	opts.SetPassword(addr.Password)
-	opts.SetAutoReconnect(false)
+	opts.SetAutoReconnect(config.autoreconnect)
+
 
 	if protocol == "tcps" || protocol == "ssl" || protocol == "tls" {
 		cert, err := tls.LoadX509KeyPair(cert, key)
@@ -58,6 +77,7 @@ func newMqttSender(addr contract.Addressable, cert string, key string) sender {
 	sender := &mqttSender{
 		client: MQTT.NewClient(opts),
 		topic:  addr.Topic,
+		opts:   *config,
 	}
 
 	return sender
@@ -72,7 +92,7 @@ func (sender *mqttSender) Send(data []byte, event *models.Event) bool {
 		}
 	}
 
-	token := sender.client.Publish(sender.topic, 0, false, data)
+	token := sender.client.Publish(sender.topic, sender.opts.qos, sender.opts.retain, data)
 	// FIXME: could be removed? set of tokens?
 	token.Wait()
 	if token.Error() != nil {
